@@ -345,4 +345,19 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Theme toggle function
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    // Update theme color meta tag
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) {
+        themeColor.setAttribute('content', newTheme === 'dark' ? '#71aaeb' : '#0077ff');
+    }
+}
+
 console.log('🔥 Iskra App Loaded');
