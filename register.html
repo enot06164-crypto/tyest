@@ -16,7 +16,10 @@
 
         <form id="registerForm" class="auth-form">
             <div class="form-group">
-                <label for="username"><i class="fas fa-user"></i> Username</label>
+                <label for="username">
+                    <svg class="icon icon-user-circle" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><use xlink:href="#icon-user-circle"></use></svg>
+                    Username
+                </label>
                 <input type="text" id="username" name="username" required 
                        placeholder="@nickname"
                        pattern="[a-zA-Z0-9_]+"
@@ -26,35 +29,44 @@
             </div>
 
             <div class="form-group">
-                <label for="display_name"><i class="fas fa-id-card"></i> Отображаемое имя</label>
+                <label for="display_name">
+                    <svg class="icon icon-id-card" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><use xlink:href="#icon-id-card"></use></svg>
+                    Отображаемое имя
+                </label>
                 <input type="text" id="display_name" name="display_name" 
                        placeholder="Как вас называть?"
                        maxlength="64">
             </div>
 
             <div class="form-group">
-                <label for="password"><i class="fas fa-lock"></i> Пароль</label>
+                <label for="password">
+                    <svg class="icon icon-lock" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><use xlink:href="#icon-lock"></use></svg>
+                    Пароль
+                </label>
                 <div class="password-input">
                     <input type="password" id="password" name="password" required 
                            placeholder="Минимум 8 символов"
                            minlength="8"
                            autocomplete="new-password">
                     <button type="button" class="toggle-password" onclick="togglePassword('password')">
-                        <i class="fas fa-eye"></i>
+                        <svg class="icon icon-eye"><use xlink:href="#icon-eye"></use></svg>
                     </button>
                 </div>
                 <div class="password-strength" id="passwordStrength"></div>
             </div>
 
             <div class="form-group">
-                <label for="password_confirm"><i class="fas fa-lock"></i> Подтвердите пароль</label>
+                <label for="password_confirm">
+                    <svg class="icon icon-lock" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><use xlink:href="#icon-lock"></use></svg>
+                    Подтвердите пароль
+                </label>
                 <input type="password" id="password_confirm" name="password_confirm" required 
                        placeholder="Повторите пароль"
                        autocomplete="new-password">
             </div>
 
             <div class="security-info">
-                <h4><i class="fas fa-shield-halved"></i> Ваша безопасность</h4>
+                <h4><svg class="icon icon-shield" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><use xlink:href="#icon-shield"></use></svg> Ваша безопасность</h4>
                 <ul>
                     <li>Пароль хешируется bcrypt (стоимость 12)</li>
                     <li>Генерируется уникальный Iskra ID</li>
@@ -64,7 +76,8 @@
             </div>
 
             <button type="submit" class="btn btn-primary btn-full">
-                <i class="fas fa-user-plus"></i> Создать аккаунт
+                <svg class="icon icon-user-plus" style="width:16px;height:16px;margin-right:6px;"><use xlink:href="#icon-user-plus"></use></svg>
+                Создать аккаунт
             </button>
 
             <div class="auth-footer">
@@ -75,15 +88,26 @@
         <div id="errorMessage" class="error-message" style="display: none;"></div>
 
         <div id="successMessage" class="success-message" style="display: none;">
-            <h3><i class="fas fa-check-circle"></i> Аккаунт создан!</h3>
+            <h3><svg class="icon icon-check" style="width:24px;height:24px;vertical-align:middle;margin-right:8px;"><use xlink:href="#icon-check"></use></svg> Аккаунт создан!</h3>
             <p>Ваш Iskra ID: <strong id="iskraId"></strong></p>
             <p>Сохраните его — по нему друзья смогут найти вас!</p>
-            <a href="/feed" class="btn btn-primary">
-                <i class="fas fa-arrow-right"></i> Перейти в Искру
-            </a>
+            <a href="/feed" class="btn btn-primary">Перейти в Искру</a>
         </div>
     </div>
 </div>
+
+<!-- Icons Sprite -->
+<svg style="display: none;">
+    <symbol id="icon-user-circle" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></symbol>
+    <symbol id="icon-id-card" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6 15H7v-2h6v2zm4-4H7v-2h10v2zm0-4H7V8h10v2z"/></symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></symbol>
+    <symbol id="icon-eye-off" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></symbol>
+    <symbol id="icon-user-plus" viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
+    <symbol id="icon-warning" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></symbol>
+</svg>
 
 <script>
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
@@ -96,7 +120,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const confirm = document.getElementById('password_confirm').value;
 
     if (password !== confirm) {
-        errorDiv.textContent = 'Пароли не совпадают';
+        errorDiv.innerHTML = '<svg class="icon icon-warning" style="width:18px;height:18px;margin-right:8px;"><use xlink:href="#icon-warning"></use></svg>Пароли не совпадают';
         errorDiv.style.display = 'flex';
         return;
     }
@@ -135,13 +159,13 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
 
 function togglePassword(id) {
     const input = document.getElementById(id);
-    const icon = input.parentNode.querySelector('i');
+    const icon = input.parentNode.querySelector('svg use');
     if (input.type === 'password') {
         input.type = 'text';
-        icon.classList.replace('fa-eye', 'fa-eye-slash');
+        icon.setAttribute('xlink:href', '#icon-eye-off');
     } else {
         input.type = 'password';
-        icon.classList.replace('fa-eye-slash', 'fa-eye');
+        icon.setAttribute('xlink:href', '#icon-eye');
     }
 }
 </script>
