@@ -76,15 +76,18 @@ async def feed_page(request: Request):
 
 @app.get("/profile/{user_id}", response_class=HTMLResponse)
 async def profile_page(request: Request, user_id: str):
-    return templates.TemplateResponse("profile/index.html", {"request": request, "user_id": user_id})
+    # Заглушка, пока нет шаблона профиля
+    return templates.TemplateResponse("base.html", {"request": request, "title": "Профиль"})
 
 @app.get("/messages", response_class=HTMLResponse)
 async def messages_page(request: Request):
-    return templates.TemplateResponse("messages/index.html", {"request": request})
+    # Заглушка, пока нет шаблона сообщений
+    return templates.TemplateResponse("base.html", {"request": request, "title": "Сообщения"})
 
 @app.get("/groups", response_class=HTMLResponse)
 async def groups_page(request: Request):
-    return templates.TemplateResponse("groups/index.html", {"request": request})
+    # Заглушка, пока нет шаблона списка групп
+    return templates.TemplateResponse("base.html", {"request": request, "title": "Группы"})
 
 @app.get("/group/{group_id}", response_class=HTMLResponse)
 async def group_page(request: Request, group_id: int):
