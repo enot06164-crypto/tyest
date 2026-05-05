@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Группы — Искра{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <svg class="logo-small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" fill="#0077ff"/>
+                <path d="M35 30 L65 50 L35 70 Z" fill="white"/>
+            </svg>
+            <span class="app-name">Искра</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/feed" class="nav-item">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-home"></use></svg>
+                <span>Лента</span>
+            </a>
+            <a href="/messages" class="nav-item">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-comment-dots"></use></svg>
+                <span>Сообщения</span>
+            </a>
+            <a href="/groups" class="nav-item active">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-users"></use></svg>
+                <span>Группы</span>
+            </a>
+            <a href="/friends" class="nav-item" onclick="event.preventDefault(); showFriends();">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-user-friends"></use></svg>
+                <span>Друзья</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/settings" class="nav-item">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-cog"></use></svg>
+                <span>Настройки</span>
+            </a>
+            <div class="user-mini" id="userMini">
+                <img src="/static/images/default-avatar.png" alt="Avatar" class="avatar-small" id="miniAvatar">
+                <div class="user-mini-info">
+                    <span class="user-name" id="miniName">Загрузка...</span>
+                    <span class="user-id" id="miniId"></span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <h1>Группы</h1>
+            <button class="btn btn-primary" onclick="showCreateGroupModal()">
+                <svg style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><use xlink:href="#icon-plus"></use></svg> Создать группу
+            </button>
+        </header>
+
+        <div class="content-area">
+            <div class="groups-search">
+                <svg style="width:18px;height:18px;opacity:0.6;"><use xlink:href="#icon-search"></use></svg>
+                <input type="text" id="groupsSearch" placeholder="Поиск групп..." oninput="filterGroups()">
+            </div>
+
+            <div class="groups-grid" id="groupsGrid">
+                <div class="loading"><svg style="width:24px;height:24px;" class="spin"><use xlink:href="#icon-spinner"></use></svg> Загрузка...</div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal" id="createGroupModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><svg style="width:18px;height:18px;vertical-align:middle;margin-right:8px;"><use xlink:href="#icon-users"></use></svg>Создать группу</h3>
+            <button class="btn btn-icon" onclick="document.getElementById('createGroupModal').style.display='none'">
+                <svg style="width:18px;height:18px;"><use xlink:href="#icon-times"></use></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="createGroupForm" onsubmit="createGroup(event)">
+                <div class="form-group">
+                    <label>Название группы</label>
+                    <input type="text" id="groupNameInput" maxlength="64" required placeholder="Введите название">
+                </div>
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea id="groupDescInput" rows="3" maxlength="255" placeholder="Опишите вашу группу"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('createGroupModal').style.display='none'">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentUser = null;
+let allGroups = [];
+
+async function init() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+            return;
+        }
+
+        currentUser = await response.json();
+        updateUI();
+        loadGroups();
+    } catch (err) {
+        console.error('Init error:', err);
+        window.location.href = '/login';
+    }
+}
+
+function updateUI() {
+    document.getElementById('miniName').textContent = currentUser.display_name || currentUser.username;
+    document.getElementById('miniId').textContent = '@' + currentUser.username;
+    if (currentUser.avatar_url) {
+        document.getElementById('miniAvatar').src = currentUser.avatar_url;
+    }
+}
+
+async function loadGroups() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/groups', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        allGroups = await response.json();
+        renderGroups(allGroups);
+    } catch (err) {
+        console.error('Load groups error:', err);
+        document.getElementById('groupsGrid').innerHTML = 
+            '<div class="empty"><svg style="width:48px;height:48px;"><use xlink:href="#icon-users"></use></svg><p>Ошибка загрузки групп</p></div>';
+    }
+}
+
+function renderGroups(groups) {
+    const container = document.getElementById('groupsGrid');
+    if (groups.length === 0) {
+        container.innerHTML = '<div class="empty"><svg style="width:48px;height:48px;"><use xlink:href="#icon-users"></use></svg><p>Группы не найдены</p></div>';
+        return;
+    }
+
+    container.innerHTML = groups.map(group => `
+        <div class="group-card" onclick="window.location.href='/group/${group.id}'">
+            <div class="group-card-avatar">${group.name.charAt(0).toUpperCase()}</div>
+            <div class="group-card-info">
+                <h3 class="group-card-name">${escapeHtml(group.name)}</h3>
+                <p class="group-card-desc">${escapeHtml(group.description || 'Нет описания')}</p>
+                <div class="group-card-stats">
+                    <svg style="width:14px;height:14px;opacity:0.7;"><use xlink:href="#icon-users"></use></svg>
+                    <span>${group.members_count} участников</span>
+                </div>
+            </div>
+            <div class="group-card-action">
+                ${group.is_member ? 
+                    '<span class="badge badge-success">✓ Вступлено</span>' : 
+                    '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); joinGroup(' + group.id + ')">Вступить</button>'
+                }
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterGroups() {
+    const query = document.getElementById('groupsSearch').value.toLowerCase();
+    const filtered = allGroups.filter(g => 
+        g.name.toLowerCase().includes(query) || 
+        (g.description && g.description.toLowerCase().includes(query))
+    );
+    renderGroups(filtered);
+}
+
+function showCreateGroupModal() {
+    document.getElementById('createGroupModal').style.display = 'flex';
+}
+
+async function createGroup(event) {
+    event.preventDefault();
+    const name = document.getElementById('groupNameInput').value.trim();
+    const description = document.getElementById('groupDescInput').value.trim();
+    
+    if (!name) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/groups', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, description })
+        });
+
+        if (response.ok) {
+            document.getElementById('createGroupModal').style.display = 'none';
+            document.getElementById('createGroupForm').reset();
+            loadGroups();
+        }
+    } catch (err) {
+        console.error('Create group error:', err);
+    }
+}
+
+async function joinGroup(groupId) {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/groups/${groupId}/join`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadGroups();
+    } catch (err) {
+        console.error('Join group error:', err);
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+init();
+</script>
+{% endblock %}

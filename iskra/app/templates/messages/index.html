@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block title %}Сообщения — Искра{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <svg class="logo-small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" fill="#0077ff"/>
+                <path d="M35 30 L65 50 L35 70 Z" fill="white"/>
+            </svg>
+            <span class="app-name">Искра</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/feed" class="nav-item">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-home"></use></svg>
+                <span>Лента</span>
+            </a>
+            <a href="/messages" class="nav-item active">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-comment-dots"></use></svg>
+                <span>Сообщения</span>
+            </a>
+            <a href="/groups" class="nav-item">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-users"></use></svg>
+                <span>Группы</span>
+            </a>
+            <a href="/friends" class="nav-item" onclick="event.preventDefault(); showFriends();">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-user-friends"></use></svg>
+                <span>Друзья</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/settings" class="nav-item">
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-cog"></use></svg>
+                <span>Настройки</span>
+            </a>
+            <div class="user-mini" id="userMini">
+                <img src="/static/images/default-avatar.png" alt="Avatar" class="avatar-small" id="miniAvatar">
+                <div class="user-mini-info">
+                    <span class="user-name" id="miniName">Загрузка...</span>
+                    <span class="user-id" id="miniId"></span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content messages-layout">
+        <div class="conversations-panel" id="conversationsPanel">
+            <div class="conversations-header">
+                <h2>Сообщения</h2>
+                <button class="btn btn-icon" onclick="showNewChatModal()" title="Новый чат">
+                    <svg style="width:18px;height:18px;"><use xlink:href="#icon-pen"></use></svg>
+                </button>
+            </div>
+            <div class="search-box">
+                <svg style="width:16px;height:16px;opacity:0.6;"><use xlink:href="#icon-search"></use></svg>
+                <input type="text" id="conversationSearch" placeholder="Поиск собеседников" oninput="filterConversations()">
+            </div>
+            <div class="conversations-list" id="conversationsList">
+                <div class="loading"><svg style="width:20px;height:20px;" class="spin"><use xlink:href="#icon-spinner"></use></svg> Загрузка...</div>
+            </div>
+        </div>
+
+        <div class="chat-panel" id="chatPanel" style="display: none;">
+            <div class="chat-header">
+                <button class="btn btn-icon back-btn" onclick="closeChat()" style="margin-right: 10px;">
+                    <svg style="width:18px;height:18px;"><use xlink:href="#icon-chevron-left"></use></svg>
+                </button>
+                <img src="/static/images/default-avatar.png" alt="" id="chatAvatar" class="chat-avatar">
+                <div class="chat-header-info">
+                    <span class="chat-name" id="chatName">Собеседник</span>
+                    <span class="chat-status" id="chatStatus">онлайн</span>
+                </div>
+            </div>
+            
+            <div class="messages-container" id="messagesContainer">
+                <div class="messages-list" id="messagesList"></div>
+            </div>
+
+            <div class="message-input-area">
+                <div class="message-input-wrapper">
+                    <input type="text" id="messageInput" placeholder="Напишите сообщение..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="btn btn-primary send-btn" onclick="sendMessage()">
+                        <svg style="width:18px;height:18px;"><use xlink:href="#icon-paper-plane"></use></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+let currentUser = null;
+let ws = null;
+let currentChat = null;
+let conversations = [];
+
+async function init() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+            return;
+        }
+
+        currentUser = await response.json();
+        updateUI();
+        loadConversations();
+        initWebSocket();
+    } catch (err) {
+        console.error('Init error:', err);
+        window.location.href = '/login';
+    }
+}
+
+function updateUI() {
+    document.getElementById('miniName').textContent = currentUser.display_name || currentUser.username;
+    document.getElementById('miniId').textContent = '@' + currentUser.username;
+    if (currentUser.avatar_url) {
+        document.getElementById('miniAvatar').src = currentUser.avatar_url;
+    }
+}
+
+function initWebSocket() {
+    const token = localStorage.getItem('token');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}/messages/ws/${token}`);
+
+    ws.onopen = () => {
+        console.log('WebSocket connected');
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_message') {
+            if (currentChat && (data.sender_id === currentChat.id || data.receiver_id === currentChat.id)) {
+                appendMessage(data);
+            }
+            loadConversations();
+        }
+    };
+
+    ws.onclose = () => setTimeout(initWebSocket, 5000);
+}
+
+async function loadConversations() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/messages/conversations', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        conversations = await response.json();
+        renderConversations();
+    } catch (err) {
+        console.error('Load conversations error:', err);
+        document.getElementById('conversationsList').innerHTML = 
+            '<div class="empty"><svg style="width:32px;height:32px;"><use xlink:href="#icon-comment-dots"></use></svg><p>Нет сообщений</p></div>';
+    }
+}
+
+function renderConversations() {
+    const container = document.getElementById('conversationsList');
+    if (conversations.length === 0) {
+        container.innerHTML = '<div class="empty"><svg style="width:32px;height:32px;"><use xlink:href="#icon-comment-dots"></use></svg><p>Нет сообщений</p></div>';
+        return;
+    }
+
+    container.innerHTML = conversations.map(conv => `
+        <div class="conversation-item ${currentChat && currentChat.id === conv.partner.id ? 'active' : ''}" 
+             onclick="openChat(${conv.partner.id}, '${escapeHtml(conv.partner.display_name || conv.partner.username)}', '${conv.partner.avatar_url || ''}')">
+            <img src="${conv.partner.avatar_url || '/static/images/default-avatar.png'}" alt="" class="conversation-avatar">
+            <div class="conversation-info">
+                <div class="conversation-top">
+                    <span class="conversation-name">${escapeHtml(conv.partner.display_name || conv.partner.username)}</span>
+                    <span class="conversation-time">${formatTime(conv.last_message_time)}</span>
+                </div>
+                <div class="conversation-preview">
+                    ${conv.last_message_text ? escapeHtml(conv.last_message_text) : '<em>Нет сообщений</em>'}
+                </div>
+            </div>
+            ${conv.unread_count > 0 ? `<span class="unread-badge">${conv.unread_count}</span>` : ''}
+        </div>
+    `).join('');
+}
+
+function openChat(userId, name, avatarUrl) {
+    currentChat = { id: userId, name: name, avatar_url: avatarUrl };
+    
+    document.getElementById('conversationsPanel').style.width = '320px';
+    document.getElementById('chatPanel').style.display = 'flex';
+    document.getElementById('chatName').textContent = name;
+    document.getElementById('chatAvatar').src = avatarUrl || '/static/images/default-avatar.png';
+    
+    loadMessages(userId);
+    renderConversations();
+    
+    if (window.innerWidth <= 768) {
+        document.getElementById('conversationsPanel').style.display = 'none';
+    }
+}
+
+function closeChat() {
+    currentChat = null;
+    document.getElementById('chatPanel').style.display = 'none';
+    document.getElementById('conversationsPanel').style.width = '100%';
+    document.getElementById('conversationsPanel').style.display = 'block';
+    loadConversations();
+}
+
+async function loadMessages(userId) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/messages/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const messages = await response.json();
+        renderMessages(messages);
+    } catch (err) {
+        console.error('Load messages error:', err);
+    }
+}
+
+function renderMessages(messages) {
+    const container = document.getElementById('messagesList');
+    container.innerHTML = messages.map(msg => `
+        <div class="message-item ${msg.sender_id === currentUser.id ? 'own' : ''}">
+            ${msg.sender_id !== currentUser.id ? `<img src="${msg.sender.avatar_url || '/static/images/default-avatar.png'}" alt="" class="message-avatar">` : ''}
+            <div class="message-content">
+                <div class="message-bubble">${escapeHtml(msg.content)}</div>
+                <div class="message-time">${formatMessageTime(msg.created_at)}</div>
+            </div>
+        </div>
+    `).join('');
+    
+    setTimeout(() => {
+        document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
+    }, 100);
+}
+
+function appendMessage(msg) {
+    const container = document.getElementById('messagesList');
+    const messageEl = document.createElement('div');
+    messageEl.className = `message-item ${msg.sender_id === currentUser.id ? 'own' : ''}`;
+    messageEl.innerHTML = `
+        ${msg.sender_id !== currentUser.id ? `<img src="${msg.sender.avatar_url || '/static/images/default-avatar.png'}" alt="" class="message-avatar">` : ''}
+        <div class="message-content">
+            <div class="message-bubble">${escapeHtml(msg.content)}</div>
+            <div class="message-time">${formatMessageTime(msg.created_at)}</div>
+        </div>
+    `;
+    container.appendChild(messageEl);
+    document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const content = input.value.trim();
+    if (!content || !currentChat) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        await fetch('/api/messages', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                receiver_id: currentChat.id,
+                content: content
+            })
+        });
+        input.value = '';
+        loadMessages(currentChat.id);
+        loadConversations();
+    } catch (err) {
+        console.error('Send message error:', err);
+    }
+}
+
+function filterConversations() {
+    const query = document.getElementById('conversationSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.conversation-item');
+    items.forEach(item => {
+        const name = item.querySelector('.conversation-name').textContent.toLowerCase();
+        item.style.display = name.includes(query) ? 'flex' : 'none';
+    });
+}
+
+function showNewChatModal() {
+    showFriends();
+}
+
+function showFriends() {
+    const modal = document.getElementById('friendsModal') || createFriendsModal();
+    modal.style.display = 'flex';
+    loadFriendsList();
+}
+
+function createFriendsModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'friendsModal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><svg style="width:18px;height:18px;vertical-align:middle;margin-right:8px;"><use xlink:href="#icon-user-friends"></use></svg>Друзья</h3>
+                <button class="btn btn-icon" onclick="document.getElementById('friendsModal').style.display='none'">
+                    <svg style="width:18px;height:18px;"><use xlink:href="#icon-times"></use></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="friendsTab" class="tab-content"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+}
+
+async function loadFriendsList() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/friends', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const friends = await response.json();
+        
+        const container = document.getElementById('friendsTab');
+        if (friends.length === 0) {
+            container.innerHTML = '<div class="empty"><p>Нет друзей</p></div>';
+            return;
+        }
+        
+        container.innerHTML = friends.map(f => `
+            <div class="friend-item" onclick="openChat(${f.id}, '${escapeHtml(f.display_name || f.username)}', '${f.avatar_url || ''}'); document.getElementById('friendsModal').style.display='none';">
+                <img src="${f.avatar_url || '/static/images/default-avatar.png'}" alt="" class="friend-avatar">
+                <div class="friend-info">
+                    <span class="friend-name">${escapeHtml(f.display_name || f.username)}</span>
+                    <span class="friend-status">онлайн</span>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Load friends error:', err);
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'только что';
+    if (diff < 3600000) return Math.floor(diff / 60000) + ' мин назад';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + ' ч назад';
+    
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+function formatMessageTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+init();
+</script>
+{% endblock %}
