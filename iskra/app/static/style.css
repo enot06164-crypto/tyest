@@ -1,5 +1,28 @@
-/* Iskra - VK Style Theme */
+/* Iskra - VK Style Theme with Dark Mode */
 :root {
+    /* Тёмная тема (по умолчанию) */
+    --vk-primary: #71aaeb;
+    --vk-primary-hover: #5d9bce;
+    --vk-primary-light: rgba(113, 170, 235, 0.15);
+    --vk-bg: #19191a;
+    --vk-surface: #222222;
+    --vk-hover: #2f2f2f;
+    --vk-border: #333333;
+    --vk-text: #e1e3e6;
+    --vk-text-secondary: #aaaaaa;
+    --vk-text-muted: #666666;
+    --vk-danger: #ff4444;
+    --vk-success: #4bb34b;
+    --vk-warning: #ffa000;
+    --vk-radius: 8px;
+    --vk-radius-lg: 12px;
+    --vk-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.4);
+    --vk-sidebar-width: 280px;
+    --vk-header-height: 48px;
+}
+
+[data-theme="light"] {
+    /* Светлая тема */
     --vk-primary: #0077ff;
     --vk-primary-hover: #0066dd;
     --vk-primary-light: rgba(0, 119, 255, 0.1);
@@ -272,15 +295,28 @@ body {
 
 .toggle-password {
     position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: 12px;
+    top: 34px;
     background: none;
     border: none;
     cursor: pointer;
     color: var(--vk-text-muted);
-    font-size: 16px;
-    padding: 4px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.toggle-password:hover {
+    background: var(--vk-hover);
+    color: var(--vk-text);
+}
+
+.toggle-password svg {
+    width: 20px;
+    height: 20px;
 }
 
 .form-group small {

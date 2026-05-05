@@ -159,13 +159,14 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
 
 function togglePassword(id) {
     const input = document.getElementById(id);
-    const icon = input.parentNode.querySelector('svg use');
+    const button = input.parentNode.querySelector('.toggle-password');
+    const iconUse = button.querySelector('svg use');
     if (input.type === 'password') {
         input.type = 'text';
-        icon.setAttribute('xlink:href', '#icon-eye-off');
+        iconUse.setAttribute('xlink:href', '#icon-eye-off');
     } else {
         input.type = 'password';
-        icon.setAttribute('xlink:href', '#icon-eye');
+        iconUse.setAttribute('xlink:href', '#icon-eye');
     }
 }
 </script>
