@@ -7,32 +7,32 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <svg class="logo-small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="45" fill="#ff6b35"/>
+                <circle cx="50" cy="50" r="45" fill="#0077ff"/>
                 <path d="M35 30 L65 50 L35 70 Z" fill="white"/>
             </svg>
             <span class="app-name">Искра</span>
         </div>
         <nav class="sidebar-nav">
             <a href="/feed" class="nav-item">
-                <span class="nav-icon">🏠</span>
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-home"></use></svg>
                 <span>Лента</span>
             </a>
             <a href="/messages" class="nav-item">
-                <span class="nav-icon">💬</span>
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-comment-dots"></use></svg>
                 <span>Сообщения</span>
             </a>
             <a href="/groups" class="nav-item">
-                <span class="nav-icon">👥</span>
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-users"></use></svg>
                 <span>Группы</span>
             </a>
             <a href="/friends" class="nav-item" onclick="event.preventDefault(); showFriends();">
-                <span class="nav-icon">🤝</span>
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-user-friends"></use></svg>
                 <span>Друзья</span>
             </a>
         </nav>
         <div class="sidebar-footer">
             <a href="/settings" class="nav-item active">
-                <span class="nav-icon">⚙️</span>
+                <svg class="nav-icon" style="width:20px;height:20px;"><use xlink:href="#icon-cog"></use></svg>
                 <span>Настройки</span>
             </a>
             <div class="user-mini" id="userMini">
@@ -57,7 +57,7 @@
                     <div class="avatar-upload">
                         <img src="/static/images/default-avatar.png" alt="Avatar" class="settings-avatar" id="settingsAvatar">
                         <label class="btn btn-secondary">
-                            📷 Сменить аватар
+                            <svg style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><use xlink:href="#icon-camera"></use></svg> Сменить аватар
                             <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="uploadAvatar()">
                         </label>
                     </div>
@@ -88,42 +88,8 @@
                     </form>
                 </div>
 
-                <div class="settings-section">
-                    <h3>🔐 Безопасность</h3>
-                    <div class="security-info">
-                        <div class="security-item">
-                            <span class="security-icon">🔒</span>
-                            <div>
-                                <h4>Пароль</h4>
-                                <p>Хеширован bcrypt (стоимость 12)</p>
-                            </div>
-                        </div>
-                        <div class="security-item">
-                            <span class="security-icon">🔑</span>
-                            <div>
-                                <h4>JWT Токены</h4>
-                                <p>Автоматическая авторизация на 30 дней</p>
-                            </div>
-                        </div>
-                        <div class="security-item">
-                            <span class="security-icon">🛡️</span>
-                            <div>
-                                <h4>E2EE Шифрование</h4>
-                                <p>Сообщения шифруются сквозным шифрованием</p>
-                            </div>
-                        </div>
-                        <div class="security-item">
-                            <span class="security-icon">👤</span>
-                            <div>
-                                <h4>Анонимность</h4>
-                                <p>Никаких телефонов, email или личных данных</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="settings-section danger-zone">
-                    <h3>⚠️ Опасная зона</h3>
+                    <h3>Выход</h3>
                     <button class="btn btn-danger" onclick="logout()">Выйти из аккаунта</button>
                 </div>
             </div>
