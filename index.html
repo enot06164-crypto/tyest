@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+
+{% block title %}Лента — Искра{% endblock %}
+
+{% block content %}
+<!-- Top Header -->
+<header class="top-header">
+    <div class="header-left">
+        <a href="/feed" class="header-logo">
+            <svg width="28" height="28" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" fill="#0077ff"/>
+                <path d="M35 30 L65 50 L35 70 Z" fill="white"/>
+            </svg>
+            <span>Искра</span>
+        </a>
+        <div class="header-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Поиск" onkeypress="if(event.key==='Enter') search()">
+        </div>
+    </div>
+    <div class="header-right">
+        <a href="/messages" class="header-btn" title="Сообщения">
+            <i class="fas fa-comment-dots"></i>
+            <span class="badge" id="msgBadge" style="display: none;">0</span>
+        </a>
+        <a href="/settings" class="header-btn" title="Настройки">
+            <i class="fas fa-cog"></i>
+        </a>
+        <div class="header-btn" onclick="logout()" title="Выйти" style="cursor: pointer;">
+            <i class="fas fa-sign-out-alt"></i>
+        </div>
+    </div>
+</header>
+
+<div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <nav class="nav-menu">
+            <a href="/feed" class="nav-item active">
+                <i class="fas fa-newspaper"></i>
+                <span>Лента</span>
+            </a>
+            <a href="/messages" class="nav-item">
+                <i class="fas fa-comment-dots"></i>
+                <span>Сообщения</span>
+            </a>
+            <a href="/groups" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Группы</span>
+            </a>
+            <div class="nav-item" onclick="showFriends()" style="cursor: pointer;">
+                <i class="fas fa-user-friends"></i>
+                <span>Друзья</span>
+                <span class="badge" id="friendBadge" style="display: none; margin-left: auto;">0</span>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <div class="nav-item" onclick="showCreatePost()" style="cursor: pointer;">
+                <i class="fas fa-pen"></i>
+                <span>Новый пост</span>
+            </div>
+        </nav>
+
+        <div class="user-nav">
+            <a href="/settings" class="user-nav-item">
+                <img src="/static/images/default-avatar.png" alt="Avatar" id="miniAvatar">
+                <div class="user-nav-info">
+                    <span class="user-nav-name" id="miniName">Загрузка...</span>
+                    <span class="user-nav-id" id="miniId"></span>
+                </div>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Create Post -->
+        <div class="create-post" id="createPostCard" style="display: none;">
+            <div class="create-post-header">
+                <img src="/static/images/default-avatar.png" alt="" id="postAvatar">
+                <span id="postUserName">Вы</span>
+            </div>
+            <textarea id="postContent" placeholder="Что у вас нового?" rows="2"></textarea>
+            <div class="create-post-actions">
+                <div class="post-tools">
+                    <button class="post-tool" title="Фото">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <button class="post-tool" title="Видео">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="post-tool" title="Музыка">
+                        <i class="fas fa-music"></i>
+                    </button>
+                </div>
+                <button class="btn btn-primary" onclick="createPost()">
+                    <i class="fas fa-paper-plane"></i> Опубликовать
+                </button>
+            </div>
+        </div>
+
+        <!-- Posts Feed -->
+        <div id="postsFeed">
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка ленты...</div>
+        </div>
+    </main>
+</div>
+
+<!-- Search Modal -->
+<div class="modal" id="searchModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-search"></i> Результаты поиска</h3>
+            <button class="btn btn-icon" onclick="closeModal('searchModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="searchResults"></div>
+    </div>
+</div>
+
+<!-- Friends Modal -->
+<div class="modal" id="friendsModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-friends"></i> Друзья</h3>
+            <button class="btn btn-icon" onclick="closeModal('friendsModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('friends')">Мои друзья</button>
+                <button class="tab" onclick="switchTab('requests')">Заявки <span id="reqCount"></span></button>
+                <button class="tab" onclick="switchTab('add')">Добавить</button>
+            </div>
+            <div id="friendsTab" class="tab-content"></div>
+            <div id="requestsTab" class="tab-content" style="display: none;"></div>
+            <div id="addTab" class="tab-content" style="display: none;">
+                <div class="form-group" style="flex-direction: row; gap: 8px;">
+                    <input type="text" id="addFriendInput" placeholder="Введите Iskra ID или username" style="flex: 1;">
+                    <button class="btn btn-primary" onclick="searchAndAdd()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div id="addFriendResults"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentUser = null;
+let ws = null;
+
+async function init() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return;
+        }
+
+        currentUser = await response.json();
+        updateUI();
+        loadFeed();
+        loadFriendRequests();
+        initWebSocket();
+    } catch (err) {
+        console.error('Init error:', err);
+        window.location.href = '/login';
+    }
+}
+
+function updateUI() {
+    document.getElementById('miniName').textContent = currentUser.display_name || currentUser.username;
+    document.getElementById('miniId').textContent = '@' + currentUser.username;
+    document.getElementById('postUserName').textContent = currentUser.display_name || currentUser.username;
+
+    if (currentUser.avatar_url) {
+        document.getElementById('miniAvatar').src = currentUser.avatar_url;
+        document.getElementById('postAvatar').src = currentUser.avatar_url;
+    }
+}
+
+function initWebSocket() {
+    const token = localStorage.getItem('token');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}/messages/ws/${token}`);
+
+    ws.onopen = () => {
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({type: 'ping'}));
+            }
+        }, 30000);
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_message') {
+            updateMessageBadge();
+        }
+    };
+
+    ws.onclose = () => setTimeout(initWebSocket, 5000);
+}
+
+async function loadFeed() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/posts', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const posts = await response.json();
+        renderPosts(posts);
+    } catch (err) {
+        document.getElementById('postsFeed').innerHTML = 
+            '<div class="empty"><i class="fas fa-exclamation-circle"></i> Ошибка загрузки ленты</div>';
+    }
+}
+
+function renderPosts(posts) {
+    const container = document.getElementById('postsFeed');
+    if (posts.length === 0) {
+        container.innerHTML = `
+            <div class="empty">
+                <i class="fas fa-newspaper"></i>
+                <p>Лента пуста. Добавьте друзей или создайте первый пост!</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = posts.map(post => `
+        <div class="post-card" data-post-id="${post.id}">
+            <div class="post-header">
+                <img src="${post.author.avatar_url || '/static/images/default-avatar.png'}" alt="">
+                <div class="post-author-info">
+                    <a href="/profile/${post.author.username}" class="post-author-name">${post.author.display_name || post.author.username}</a>
+                    <span class="post-time">${formatDate(post.created_at)}</span>
+                </div>
+            </div>
+            <div class="post-content">${escapeHtml(post.content)}</div>
+            ${post.image_url ? `<img src="${post.image_url}" class="post-image" alt="">` : ''}
+            <div class="post-stats">
+                <button class="post-stat ${post.is_liked_by_me ? 'liked' : ''}" onclick="toggleLike(${post.id})">
+                    <i class="${post.is_liked_by_me ? 'fas' : 'far'} fa-heart"></i> ${post.likes_count}
+                </button>
+                <button class="post-stat" onclick="showComments(${post.id})">
+                    <i class="far fa-comment"></i> ${post.comments_count}
+                </button>
+                <button class="post-stat" onclick="sharePost(${post.id})">
+                    <i class="fas fa-share"></i> Поделиться
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showCreatePost() {
+    const card = document.getElementById('createPostCard');
+    card.style.display = card.style.display === 'none' ? 'block' : 'none';
+}
+
+async function createPost() {
+    const content = document.getElementById('postContent').value.trim();
+    if (!content) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/posts', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content, is_public: true })
+        });
+
+        if (response.ok) {
+            document.getElementById('postContent').value = '';
+            document.getElementById('createPostCard').style.display = 'none';
+            loadFeed();
+        }
+    } catch (err) {
+        console.error('Create post error:', err);
+    }
+}
+
+async function toggleLike(postId) {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/posts/${postId}/like`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadFeed();
+    } catch (err) {
+        console.error('Like error:', err);
+    }
+}
+
+async function search() {
+    const q = document.getElementById('searchInput').value.trim();
+    if (!q) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        showSearchResults(data);
+    } catch (err) {
+        console.error('Search error:', err);
+    }
+}
+
+function showSearchResults(data) {
+    const modal = document.getElementById('searchModal');
+    const results = document.getElementById('searchResults');
+
+    let html = '';
+
+    if (data.users.length > 0) {
+        html += '<h4 style="margin-bottom: 12px; color: var(--vk-text-secondary); font-size: 13px; text-transform: uppercase;">Пользователи</h4>';
+        html += data.users.map(u => `
+            <div class="search-result-item">
+                <img src="${u.avatar_url || '/static/images/default-avatar.png'}" alt="" class="avatar">
+                <div class="search-result-info">
+                    <a href="/profile/${u.username}" class="result-name">${u.display_name || u.username}</a>
+                    <span class="result-id">ID: ${u.iskra_id}</span>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="sendFriendRequest(${u.id})">
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    if (data.groups.length > 0) {
+        html += '<h4 style="margin: 16px 0 12px; color: var(--vk-text-secondary); font-size: 13px; text-transform: uppercase;">Группы</h4>';
+        html += data.groups.map(g => `
+            <div class="search-result-item">
+                <div class="group-avatar" style="width: 40px; height: 40px; font-size: 18px;">${g.name.charAt(0)}</div>
+                <div class="search-result-info">
+                    <a href="/group/${g.id}" class="result-name">${g.name}</a>
+                    <span class="result-meta">${g.members_count} участников</span>
+                </div>
+                ${g.is_member ? 
+                    '<span class="badge" style="background: var(--vk-success); color: white;">Вступлено</span>' : 
+                    `<button class="btn btn-primary btn-sm" onclick="joinGroup(${g.id})">Вступить</button>`
+                }
+            </div>
+        `).join('');
+    }
+
+    if (!html) html = '<div class="empty"><i class="fas fa-search"></i> Ничего не найдено</div>';
+
+    results.innerHTML = html;
+    modal.style.display = 'flex';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+async function sendFriendRequest(userId) {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch('/api/friends/request', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ receiver_id: userId })
+        });
+        alert('Заявка отправлена!');
+    } catch (err) {
+        console.error('Friend request error:', err);
+    }
+}
+
+async function loadFriendRequests() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/friends/requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const requests = await response.json();
+        const badge = document.getElementById('friendBadge');
+        if (requests.length > 0) {
+            badge.textContent = requests.length;
+            badge.style.display = 'inline-flex';
+        }
+        document.getElementById('reqCount').textContent = requests.length > 0 ? `(${requests.length})` : '';
+    } catch (err) {
+        console.error('Load requests error:', err);
+    }
+}
+
+function showFriends() {
+    document.getElementById('friendsModal').style.display = 'flex';
+    loadFriendsList();
+}
+
+async function loadFriendsList() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/friends', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const friends = await response.json();
+        const container = document.getElementById('friendsTab');
+        if (friends.length === 0) {
+            container.innerHTML = '<div class="empty"><i class="fas fa-user-friends"></i> У вас пока нет друзей</div>';
+        } else {
+            container.innerHTML = friends.map(f => `
+                <div class="friend-item">
+                    <img src="${f.avatar_url || '/static/images/default-avatar.png'}" alt="" class="avatar">
+                    <div class="friend-info">
+                        <a href="/profile/${f.username}" class="friend-name">${f.display_name || f.username}</a>
+                        <span class="friend-status">${f.is_online ? '<i class="fas fa-circle" style="color: var(--vk-success); font-size: 8px;"></i> Онлайн' : 'Был недавно'}</span>
+                    </div>
+                    <button class="btn btn-icon" onclick="removeFriend(${f.id})" title="Удалить">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+    } catch (err) {
+        console.error('Load friends error:', err);
+    }
+}
+
+async function loadRequestsList() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/friends/requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const requests = await response.json();
+        const container = document.getElementById('requestsTab');
+        if (requests.length === 0) {
+            container.innerHTML = '<div class="empty"><i class="fas fa-inbox"></i> Нет новых заявок</div>';
+        } else {
+            container.innerHTML = requests.map(r => `
+                <div class="friend-item">
+                    <img src="${r.sender.avatar_url || '/static/images/default-avatar.png'}" alt="" class="avatar">
+                    <div class="friend-info">
+                        <span class="friend-name">${r.sender.display_name || r.sender.username}</span>
+                        <span class="friend-status">ID: ${r.sender.iskra_id}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="acceptRequest(${r.id})">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="rejectRequest(${r.id})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (err) {
+        console.error('Load requests error:', err);
+    }
+}
+
+async function acceptRequest(requestId) {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/friends/accept/${requestId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadRequestsList();
+        loadFriendsList();
+        loadFriendRequests();
+    } catch (err) {
+        console.error('Accept request error:', err);
+    }
+}
+
+async function rejectRequest(requestId) {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/friends/reject/${requestId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadRequestsList();
+        loadFriendRequests();
+    } catch (err) {
+        console.error('Reject request error:', err);
+    }
+}
+
+async function searchAndAdd() {
+    const q = document.getElementById('addFriendInput').value.trim();
+    if (!q) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const users = await response.json();
+        const container = document.getElementById('addFriendResults');
+        if (users.length === 0) {
+            container.innerHTML = '<div class="empty"><i class="fas fa-search"></i> Пользователь не найден</div>';
+        } else {
+            container.innerHTML = users.map(u => `
+                <div class="search-result-item" style="cursor: pointer;" onclick="sendFriendRequest(${u.id})">
+                    <img src="${u.avatar_url || '/static/images/default-avatar.png'}" alt="" class="avatar">
+                    <div class="search-result-info">
+                        <span class="result-name">${u.display_name || u.username}</span>
+                        <span class="result-id">ID: ${u.iskra_id}</span>
+                    </div>
+                    <button class="btn btn-primary btn-sm">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+    } catch (err) {
+        console.error('Search and add error:', err);
+    }
+}
+
+async function removeFriend(friendId) {
+    if (!confirm('Удалить из друзей?')) return;
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/friends/${friendId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadFriendsList();
+    } catch (err) {
+        console.error('Remove friend error:', err);
+    }
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    document.getElementById(tab + 'Tab').style.display = 'block';
+
+    if (tab === 'friends') loadFriendsList();
+    if (tab === 'requests') loadRequestsList();
+}
+
+function logout() {
+    const token = localStorage.getItem('token');
+    fetch('/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    }).finally(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+    });
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+
+    if (diff < 60000) return 'только что';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} мин. назад`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч. назад`;
+    return date.toLocaleDateString('ru-RU');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function updateMessageBadge() {
+    const badge = document.getElementById('msgBadge');
+    let count = parseInt(badge.textContent) || 0;
+    badge.textContent = count + 1;
+    badge.style.display = 'inline-flex';
+}
+
+init();
+</script>
+{% endblock %}

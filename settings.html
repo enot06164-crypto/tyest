@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки — Искра{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <svg class="logo-small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" fill="#ff6b35"/>
+                <path d="M35 30 L65 50 L35 70 Z" fill="white"/>
+            </svg>
+            <span class="app-name">Искра</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/feed" class="nav-item">
+                <span class="nav-icon">🏠</span>
+                <span>Лента</span>
+            </a>
+            <a href="/messages" class="nav-item">
+                <span class="nav-icon">💬</span>
+                <span>Сообщения</span>
+            </a>
+            <a href="/groups" class="nav-item">
+                <span class="nav-icon">👥</span>
+                <span>Группы</span>
+            </a>
+            <a href="/friends" class="nav-item" onclick="event.preventDefault(); showFriends();">
+                <span class="nav-icon">🤝</span>
+                <span>Друзья</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/settings" class="nav-item active">
+                <span class="nav-icon">⚙️</span>
+                <span>Настройки</span>
+            </a>
+            <div class="user-mini" id="userMini">
+                <img src="/static/images/default-avatar.png" alt="Avatar" class="avatar-small" id="miniAvatar">
+                <div class="user-mini-info">
+                    <span class="user-name" id="miniName">Загрузка...</span>
+                    <span class="user-id" id="miniId"></span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <h1>Настройки</h1>
+        </header>
+
+        <div class="content-area">
+            <div class="settings-container">
+                <div class="settings-section">
+                    <h3>Профиль</h3>
+                    <div class="avatar-upload">
+                        <img src="/static/images/default-avatar.png" alt="Avatar" class="settings-avatar" id="settingsAvatar">
+                        <label class="btn btn-secondary">
+                            📷 Сменить аватар
+                            <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="uploadAvatar()">
+                        </label>
+                    </div>
+
+                    <form id="profileForm" class="settings-form">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="settingsUsername" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Iskra ID</label>
+                            <input type="text" id="settingsId" disabled>
+                            <small>ID нельзя изменить. Используйте его для добавления друзей.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Отображаемое имя</label>
+                            <input type="text" id="settingsDisplayName" maxlength="64">
+                        </div>
+                        <div class="form-group">
+                            <label>Статус</label>
+                            <input type="text" id="settingsStatus" maxlength="255" placeholder="Что у вас нового?">
+                        </div>
+                        <div class="form-group">
+                            <label>О себе</label>
+                            <textarea id="settingsBio" rows="3" placeholder="Расскажите о себе..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                    </form>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🔐 Безопасность</h3>
+                    <div class="security-info">
+                        <div class="security-item">
+                            <span class="security-icon">🔒</span>
+                            <div>
+                                <h4>Пароль</h4>
+                                <p>Хеширован bcrypt (стоимость 12)</p>
+                            </div>
+                        </div>
+                        <div class="security-item">
+                            <span class="security-icon">🔑</span>
+                            <div>
+                                <h4>JWT Токены</h4>
+                                <p>Автоматическая авторизация на 30 дней</p>
+                            </div>
+                        </div>
+                        <div class="security-item">
+                            <span class="security-icon">🛡️</span>
+                            <div>
+                                <h4>E2EE Шифрование</h4>
+                                <p>Сообщения шифруются сквозным шифрованием</p>
+                            </div>
+                        </div>
+                        <div class="security-item">
+                            <span class="security-icon">👤</span>
+                            <div>
+                                <h4>Анонимность</h4>
+                                <p>Никаких телефонов, email или личных данных</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section danger-zone">
+                    <h3>⚠️ Опасная зона</h3>
+                    <button class="btn btn-danger" onclick="logout()">Выйти из аккаунта</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+let currentUser = null;
+
+async function init() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+            return;
+        }
+
+        currentUser = await response.json();
+        updateUI();
+        fillForm();
+    } catch (err) {
+        console.error('Init error:', err);
+    }
+}
+
+function updateUI() {
+    document.getElementById('miniName').textContent = currentUser.display_name || currentUser.username;
+    document.getElementById('miniId').textContent = '@' + currentUser.username;
+    if (currentUser.avatar_url) {
+        document.getElementById('miniAvatar').src = currentUser.avatar_url;
+        document.getElementById('settingsAvatar').src = currentUser.avatar_url;
+    }
+}
+
+function fillForm() {
+    document.getElementById('settingsUsername').value = currentUser.username;
+    document.getElementById('settingsId').value = currentUser.iskra_id;
+    document.getElementById('settingsDisplayName').value = currentUser.display_name || '';
+    document.getElementById('settingsStatus').value = currentUser.status || '';
+    document.getElementById('settingsBio').value = currentUser.bio || '';
+}
+
+document.getElementById('profileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch('/auth/me', {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                display_name: document.getElementById('settingsDisplayName').value,
+                status: document.getElementById('settingsStatus').value,
+                bio: document.getElementById('settingsBio').value
+            })
+        });
+
+        if (response.ok) {
+            alert('Профиль обновлён!');
+            const updated = await response.json();
+            currentUser = updated;
+            updateUI();
+        }
+    } catch (err) {
+        console.error('Update profile error:', err);
+    }
+});
+
+async function uploadAvatar() {
+    const input = document.getElementById('avatarInput');
+    const file = input.files[0];
+    if (!file) return;
+
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/auth/me/avatar', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('settingsAvatar').src = data.avatar_url;
+            document.getElementById('miniAvatar').src = data.avatar_url;
+            alert('Аватар обновлён!');
+        }
+    } catch (err) {
+        console.error('Upload avatar error:', err);
+    }
+}
+
+function logout() {
+    const token = localStorage.getItem('token');
+    fetch('/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    }).finally(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+    });
+}
+
+// Initialize
+init();
+</script>
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Группа — Искра{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <svg class="logo-small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" fill="#ff6b35"/>
+                <path d="M35 30 L65 50 L35 70 Z" fill="white"/>
+            </svg>
+            <span class="app-name">Искра</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/feed" class="nav-item">
+                <span class="nav-icon">🏠</span>
+                <span>Лента</span>
+            </a>
+            <a href="/messages" class="nav-item">
+                <span class="nav-icon">💬</span>
+                <span>Сообщения</span>
+            </a>
+            <a href="/groups" class="nav-item active">
+                <span class="nav-icon">👥</span>
+                <span>Группы</span>
+            </a>
+            <a href="/friends" class="nav-item" onclick="event.preventDefault(); showFriends();">
+                <span class="nav-icon">🤝</span>
+                <span>Друзья</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/settings" class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                <span>Настройки</span>
+            </a>
+            <div class="user-mini" id="userMini">
+                <img src="/static/images/default-avatar.png" alt="Avatar" class="avatar-small" id="miniAvatar">
+                <div class="user-mini-info">
+                    <span class="user-name" id="miniName">Загрузка...</span>
+                    <span class="user-id" id="miniId"></span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="group-header" id="groupHeader">
+            <div class="group-header-info">
+                <div class="group-avatar-large" id="groupAvatar"></div>
+                <div class="group-header-text">
+                    <h1 id="groupName">Загрузка...</h1>
+                    <p id="groupDescription"></p>
+                    <span class="group-stats" id="groupStats"></span>
+                </div>
+            </div>
+            <div class="group-actions" id="groupActions"></div>
+        </div>
+
+        <div class="content-area">
+            <div class="group-content">
+                <div class="posts-section" id="postsSection">
+                    <div class="create-post-card" id="createPostCard" style="display: none;">
+                        <textarea id="postContent" placeholder="Напишите что-нибудь для группы..." maxlength="5000"></textarea>
+                        <div class="create-post-actions">
+                            <button class="btn btn-primary" onclick="createGroupPost()">Опубликовать</button>
+                        </div>
+                    </div>
+                    <div class="posts-feed" id="groupPosts">
+                        <div class="loading">Загрузка...</div>
+                    </div>
+                </div>
+
+                <div class="members-section">
+                    <h3>Участники</h3>
+                    <div class="members-list" id="membersList">
+                        <div class="loading">Загрузка...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+const groupId = {{ group_id }};
+let currentUser = null;
+let groupData = null;
+
+async function init() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+            return;
+        }
+
+        currentUser = await response.json();
+        updateUI();
+        loadGroup();
+    } catch (err) {
+        console.error('Init error:', err);
+    }
+}
+
+function updateUI() {
+    document.getElementById('miniName').textContent = currentUser.display_name || currentUser.username;
+    document.getElementById('miniId').textContent = '@' + currentUser.username;
+    if (currentUser.avatar_url) {
+        document.getElementById('miniAvatar').src = currentUser.avatar_url;
+    }
+}
+
+async function loadGroup() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/groups/${groupId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        groupData = await response.json();
+        renderGroup();
+        loadGroupPosts();
+    } catch (err) {
+        console.error('Load group error:', err);
+    }
+}
+
+function renderGroup() {
+    document.getElementById('groupName').textContent = groupData.name;
+    document.getElementById('groupDescription').textContent = groupData.description || 'Нет описания';
+    document.getElementById('groupStats').textContent = `${groupData.members_count} участников`;
+    document.getElementById('groupAvatar').textContent = groupData.name.charAt(0).toUpperCase();
+
+    const actions = document.getElementById('groupActions');
+    if (groupData.is_member) {
+        document.getElementById('createPostCard').style.display = 'block';
+        actions.innerHTML = `
+            <span class="badge badge-success">✓ Вы участник</span>
+            <button class="btn btn-secondary" onclick="leaveGroup()">Покинуть</button>
+        `;
+    } else {
+        actions.innerHTML = `<button class="btn btn-primary" onclick="joinGroup()">Вступить</button>`;
+    }
+}
+
+async function loadGroupPosts() {
+    // For demo, showing placeholder
+    document.getElementById('groupPosts').innerHTML = '<div class="empty">Пока нет постов в группе</div>';
+}
+
+async function createGroupPost() {
+    const content = document.getElementById('postContent').value.trim();
+    if (!content) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        // Would call API to create group post
+        document.getElementById('postContent').value = '';
+        alert('Пост опубликован!');
+    } catch (err) {
+        console.error('Create post error:', err);
+    }
+}
+
+async function joinGroup() {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/groups/${groupId}/join`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadGroup();
+    } catch (err) {
+        console.error('Join group error:', err);
+    }
+}
+
+async function leaveGroup() {
+    if (!confirm('Покинуть группу?')) return;
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/groups/${groupId}/leave`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        window.location.href = '/groups';
+    } catch (err) {
+        console.error('Leave group error:', err);
+    }
+}
+
+// Initialize
+init();
+</script>
+{% endblock %}
